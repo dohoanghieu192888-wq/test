@@ -1,0 +1,36 @@
+name: Build iOS IPA
+
+# Build .ipa tren macOS runner cua GitHub (Apple Silicon, co Xcode).
+# Khong can may Mac tai cho. Xem ios-build/README.md.
+on:
+  workflow_dispatch:
+    inputs:
+      method:
+        description: "unsigned | development | ad-hoc | app-store-connect"
+        required: true
+        default: unsigned
+
+jobs:
+  ipa:
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true # libiPhone-lib.a / libil2cpp.a > 100MB nen can Git LFS
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build IPA
+        env:
+          DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
+          BUNDLE_ID: ${{ vars.BUNDLE_ID }}
+        run: bash ios-build/build-ipa.sh "${{ inputs.method }}"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ipa-${{ inputs.method }}
+          path: ios-build/out/**/*.ipa
+          if-no-files-found: warn
