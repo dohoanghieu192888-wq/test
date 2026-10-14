@@ -1,7 +1,4 @@
 name: Build iOS IPA
-
-# Build .ipa tren macOS runner cua GitHub (Apple Silicon, co Xcode).
-# Khong can may Mac tai cho. Xem ios-build/README.md.
 on:
   workflow_dispatch:
     inputs:
@@ -12,12 +9,24 @@ on:
 
 jobs:
   ipa:
-    runs-on: macos-14
-    timeout-minutes: 90
+    # macos-15 (arm64) thay cho macos-14: GitHub khai tu image macos-14 / macos-15-intel tu 2/11/2026.
+    runs-on: macos-15
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:
-          lfs: true # libiPhone-lib.a / libil2cpp.a > 100MB nen can Git LFS
+          lfs: true # libiPhone-lib.a (196MB) / libil2cpp.a (65MB) duoc luu bang Git LFS
+
+      # Tai lai vat the LFS va kiem tra file that (tranh truong hop con pointer).
+      - name: Kiem tra thu vien da tai du chua
+        run: |
+          git lfs pull
+          for lib in Libraries/libiPhone-lib.a Libraries/libil2cpp.a; do
+            if [ "$(head -c 8 "$lib")" != '!<arch>' ]; then
+              echo "::error::$lib khong phai file ar that - chua tai duoc tu Git LFS"
+              exit 1
+            fi
+          done
 
       - name: Show Xcode version
         run: xcodebuild -version

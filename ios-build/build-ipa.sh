@@ -1,21 +1,4 @@
 #!/usr/bin/env bash
-#
-# Build file .ipa tu project Unity export (Unity-iPhone.xcodeproj).
-#
-# CHI CHAY DUOC TREN macOS co Xcode + Command Line Tools.
-# Tren Windows khong the tao .ipa (thieu clang/ld, SDK iOS va il2cpp la Mach-O).
-#
-# Cach dung:
-#   ./ios-build/build-ipa.sh unsigned                        # .ipa chua ky (Sideloadly/TrollStore)
-#   ./ios-build/build-ipa.sh development                     # ky voi Apple ID mien phi (7 ngay)
-#   DEVELOPMENT_TEAM=ABCDE12345 ./ios-build/build-ipa.sh ad-hoc
-#   DEVELOPMENT_TEAM=ABCDE12345 ./ios-build/build-ipa.sh app-store-connect
-#
-# Bien moi truong (tuy chon):
-#   DEVELOPMENT_TEAM  Team ID (bat buoc voi development/ad-hoc/app-store-connect)
-#   BUNDLE_ID         ghi de bundle id cua app (mac dinh lay tu project)
-#   BUILD_NUMBER      ghi de CFBundleVersion (mac dinh 1)
-#
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -39,6 +22,23 @@ if ! command -v xcodebuild >/dev/null 2>&1; then
   echo "LOI: khong tim thay xcodebuild. Cai Xcode roi chay: sudo xcode-select -s /Applications/Xcode.app" >&2
   exit 1
 fi
+
+# Kiem tra 2 thu vien tinh cua Unity (luu bang Git LFS) truoc khi build, de bao loi ro
+# rang thay vi loi kho hieu "The source path ... does not exist" tu il2cpp.
+for lib in Libraries/libiPhone-lib.a Libraries/libil2cpp.a; do
+  path="$ROOT/$lib"
+  if [[ ! -f "$path" ]]; then
+    echo "LOI: thieu $lib." >&2
+    echo "     File nay duoc luu bang Git LFS: chay 'git lfs install && git lfs pull'," >&2
+    echo "     va dam bao .gitignore KHONG loai Libraries/*.a." >&2
+    exit 1
+  fi
+  if [[ "$(head -c 8 "$path")" != "!<arch>" ]]; then
+    echo "LOI: $lib khong phai file ar that ($(wc -c < "$path") byte) - nhieu kha nang la LFS pointer chua tai ve." >&2
+    echo "     Chay: git lfs pull" >&2
+    exit 1
+  fi
+done
 
 case "$METHOD" in
   unsigned)         OVERRIDES=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" ENTITLEMENTS_REQUIRED=NO) ;;
